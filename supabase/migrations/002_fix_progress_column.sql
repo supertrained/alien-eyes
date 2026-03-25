@@ -1,0 +1,1 @@
+ALTER TABLE audits ALTER COLUMN progress TYPE NUMERIC(5,2);

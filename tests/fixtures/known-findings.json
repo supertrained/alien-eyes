@@ -1,0 +1,98 @@
+[
+  {
+    "id": "known-001",
+    "severity": "critical",
+    "summary": "Every page except /meo has canonical pointing to homepage instead of itself.",
+    "keywords": ["canonical", "homepage", "services", "blog", "about", "method", "contact", "blueprint", "work"],
+    "paths": ["/services", "/blog", "/about", "/method", "/contact", "/blueprint", "/work"],
+    "dimension": "seo"
+  },
+  {
+    "id": "known-002",
+    "severity": "high",
+    "summary": "Calendly widget on /contact does not render when cookies are declined.",
+    "keywords": ["calendly", "contact", "cookies", "declined", "booking", "widget"],
+    "paths": ["/contact"],
+    "dimension": "ux"
+  },
+  {
+    "id": "known-003",
+    "severity": "medium",
+    "summary": "React hydration error #418 fires on /blog, /work, and /blueprint.",
+    "keywords": ["react", "hydration", "418", "blog", "work", "blueprint"],
+    "paths": ["/blog", "/work", "/blueprint"],
+    "dimension": "performance"
+  },
+  {
+    "id": "known-004",
+    "severity": "medium",
+    "summary": "Homepage animated counters expose zero values in DOM/accessibility tree.",
+    "keywords": ["homepage", "counters", "0", "screen readers", "agents", "dom"],
+    "paths": ["/"],
+    "dimension": "accessibility"
+  },
+  {
+    "id": "known-005",
+    "severity": "medium",
+    "summary": "/services meta description still describes old service names.",
+    "keywords": ["services", "meta description", "workflow automation", "revenue signal", "demand capture", "reliability"],
+    "paths": ["/services"],
+    "dimension": "seo"
+  },
+  {
+    "id": "known-006",
+    "severity": "low",
+    "summary": "OG description is generic and duplicated across /services, /about, and /contact.",
+    "keywords": ["og", "description", "generic", "services", "about", "contact"],
+    "paths": ["/services", "/about", "/contact"],
+    "dimension": "seo"
+  },
+  {
+    "id": "known-007",
+    "severity": "low",
+    "summary": "/blueprint title repeats SuperTrained twice.",
+    "keywords": ["blueprint", "title", "supertrained", "duplicate", "brand"],
+    "paths": ["/blueprint"],
+    "dimension": "seo"
+  },
+  {
+    "id": "known-008",
+    "severity": "medium",
+    "summary": "nav and footer are inside main instead of being landmarks outside it.",
+    "keywords": ["nav", "footer", "main", "landmarks", "header"],
+    "paths": ["/"],
+    "dimension": "accessibility"
+  },
+  {
+    "id": "known-009",
+    "severity": "medium",
+    "summary": "No CSP or HSTS headers are present.",
+    "keywords": ["csp", "hsts", "headers", "strict-transport-security", "content-security-policy"],
+    "paths": ["/"],
+    "dimension": "security"
+  },
+  {
+    "id": "known-010",
+    "severity": "low",
+    "summary": "Products section H3 headings are empty because names only exist in image alt text.",
+    "keywords": ["h3", "cloneicp", "snowthere", "alt text", "products"],
+    "paths": ["/"],
+    "dimension": "accessibility"
+  },
+  {
+    "id": "known-011",
+    "severity": "medium",
+    "summary": "Google Analytics and Google Ads requests fire before cookie consent.",
+    "keywords": ["google analytics", "google ads", "cookie consent", "before consent", "tracking"],
+    "paths": ["/"],
+    "dimension": "security"
+  },
+  {
+    "id": "known-012",
+    "severity": "low",
+    "summary": "robots.txt comments out llms.txt references even though llms.txt exists.",
+    "keywords": ["robots.txt", "llms.txt", "commented out", "agent guidance"],
+    "paths": ["/robots.txt"],
+    "dimension": "agent-nativeness"
+  }
+]

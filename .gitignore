@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# next.js
+.next/
+out/
+
+# production
+build/
+
+# env files
+.env
+.env.local
+.env.*.local
+
+# debug
+npm-debug.log*
+
+# misc
+.DS_Store
+*.tsbuildinfo
+
+# tmp
+.tmp/
+
+# supabase
+.supabase/
+.vercel
+
+# playwright mcp artifacts
+.playwright-mcp/
+
+# screenshots
+*.png
