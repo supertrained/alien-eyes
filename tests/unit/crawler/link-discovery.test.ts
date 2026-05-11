@@ -50,6 +50,58 @@ describe('RobotsTxtPolicy', () => {
     const policy = new RobotsTxtPolicy({ fetchFn });
     await expect(policy.getSitemapUrls('https://example.com')).resolves.toEqual(['https://example.com/docs']);
   });
+
+  it('detects AI crawler directives from robots.txt', async () => {
+    const fetchFn: typeof fetch = async (input) => {
+      const url = String(input);
+      if (url.endsWith('/robots.txt')) {
+        return new Response([
+          'User-agent: *',
+          'Disallow: /private',
+          '',
+          'User-agent: GPTBot',
+          'Disallow: /',
+          '',
+          'User-agent: ClaudeBot',
+          'Disallow: /api',
+          'Disallow: /admin',
+          '',
+          'User-agent: PerplexityBot',
+          'Disallow: /',
+        ].join('\n'), { status: 200 });
+      }
+      return new Response('', { status: 404 });
+    };
+
+    const policy = new RobotsTxtPolicy({ fetchFn });
+    const directives = await policy.getAICrawlerDirectives('https://example.com');
+
+    const gptBot = directives.find((d) => d.botName === 'GPTBot');
+    expect(gptBot).toBeDefined();
+    expect(gptBot!.blocked).toBe(true);
+    expect(gptBot!.platform).toBe('OpenAI / ChatGPT');
+
+    const claudeBot = directives.find((d) => d.botName === 'ClaudeBot');
+    expect(claudeBot).toBeDefined();
+    expect(claudeBot!.blocked).toBe(false);
+    expect(claudeBot!.disallowedPaths).toEqual(['/api', '/admin']);
+
+    const perplexityBot = directives.find((d) => d.botName === 'PerplexityBot');
+    expect(perplexityBot).toBeDefined();
+    expect(perplexityBot!.blocked).toBe(true);
+
+    const googleExtended = directives.find((d) => d.botName === 'Google-Extended');
+    expect(googleExtended).toBeDefined();
+    expect(googleExtended!.blocked).toBe(false);
+    expect(googleExtended!.disallowedPaths).toEqual(['/private']);
+  });
+
+  it('returns empty array when no robots.txt exists', async () => {
+    const fetchFn: typeof fetch = async () => new Response('', { status: 404 });
+    const policy = new RobotsTxtPolicy({ fetchFn });
+    const directives = await policy.getAICrawlerDirectives('https://example.com');
+    expect(directives).toEqual([]);
+  });
 });
 
 describe('prioritizeLinks', () => {

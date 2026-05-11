@@ -20,11 +20,48 @@ export class AgentNativenessPrimitive extends BasePrimitive {
     this.fetchFn = options.fetchFn ?? fetch;
   }
 
-  async run(_crawl: CrawlResult, summaries: PageSummary[], config: AuditConfig) {
+  async run(crawl: CrawlResult, summaries: PageSummary[], config: AuditConfig) {
     return withPrimitiveEnvelope(this, config.methodologyVersion, async () => {
       const findings: Finding[] = [];
       let index = 1;
       const endpointSignals = summaries[0] ? await probeAgentEndpoints(summaries[0].url, this.fetchFn) : [];
+
+      if (crawl.aiCrawlerDirectives && summaries[0]) {
+        const blocked = crawl.aiCrawlerDirectives.filter((d) => d.blocked);
+        const partiallyBlocked = crawl.aiCrawlerDirectives.filter((d) => !d.blocked && d.disallowedPaths.length > 0);
+
+        if (blocked.length > 0) {
+          const botList = blocked.map((d) => `${d.botName} (${d.platform})`).join(', ');
+          findings.push(this.createFinding({
+            page: summaries[0],
+            id: createFindingId(this.name, index++),
+            what: `robots.txt blocks ${blocked.length} AI crawler${blocked.length > 1 ? 's' : ''}: ${botList}.`,
+            expected: 'Sites seeking AI visibility should allow major AI crawlers unless there is a specific reason to block them.',
+            why: 'Blocked AI crawlers cannot index content, reducing the chance of appearing in AI-generated recommendations and answers.',
+            verify: 'Review robots.txt User-agent directives and confirm each block is intentional.',
+            severity: blocked.length >= 3 ? 'high' : 'medium',
+            confidence: 0.96,
+            requiresHumanJudgment: true,
+            humanJudgmentReason: 'Blocking AI crawlers may be intentional (content protection, licensing) or accidental.'
+          }));
+        }
+
+        if (partiallyBlocked.length > 0) {
+          const botList = partiallyBlocked.map((d) => `${d.botName} (${d.disallowedPaths.join(', ')})`).join('; ');
+          findings.push(this.createFinding({
+            page: summaries[0],
+            id: createFindingId(this.name, index++),
+            what: `robots.txt partially restricts ${partiallyBlocked.length} AI crawler${partiallyBlocked.length > 1 ? 's' : ''}: ${botList}.`,
+            expected: 'Partial restrictions should target non-public content, not pages that benefit from AI discoverability.',
+            why: 'Restricted paths are invisible to the affected AI systems, which may fragment the brand representation.',
+            verify: 'Confirm the restricted paths contain content that should not appear in AI systems.',
+            severity: 'low',
+            confidence: 0.85,
+            requiresHumanJudgment: true,
+            humanJudgmentReason: 'Partial restrictions require understanding of which content should be AI-accessible.'
+          }));
+        }
+      }
 
       for (const summary of summaries) {
         if (summary.structuredData.length === 0) {

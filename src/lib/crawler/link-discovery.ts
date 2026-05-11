@@ -1,4 +1,5 @@
 import { load } from 'cheerio';
+import type { AICrawlerDirective } from '@/types';
 import type { PageLike } from '@/lib/crawler/page-collector';
 
 export interface RobotsTxtPolicyOptions {
@@ -9,6 +10,17 @@ interface RuleSet {
   status: 'found' | 'not_found';
   disallow: string[];
 }
+
+const AI_CRAWLERS: Array<{ botName: string; platform: string }> = [
+  { botName: 'GPTBot', platform: 'OpenAI / ChatGPT' },
+  { botName: 'ChatGPT-User', platform: 'OpenAI / ChatGPT' },
+  { botName: 'ClaudeBot', platform: 'Anthropic / Claude' },
+  { botName: 'anthropic-ai', platform: 'Anthropic / Claude' },
+  { botName: 'PerplexityBot', platform: 'Perplexity' },
+  { botName: 'Google-Extended', platform: 'Google / Gemini' },
+  { botName: 'CCBot', platform: 'Common Crawl (AI training)' },
+  { botName: 'cohere-ai', platform: 'Cohere' },
+];
 
 export class RobotsTxtPolicy {
   private readonly fetchFn: typeof fetch;
@@ -51,6 +63,13 @@ export class RobotsTxtPolicy {
     return rules.status;
   }
 
+  async getAICrawlerDirectives(rawUrl: string): Promise<AICrawlerDirective[]> {
+    const url = new URL(rawUrl);
+    const robotsText = await this.getRawRobotsText(url);
+    if (!robotsText) return [];
+    return parseAICrawlerDirectives(robotsText);
+  }
+
   async getSitemapUrls(rawUrl: string): Promise<string[]> {
     const url = new URL(rawUrl);
     const sitemapUrl = new URL('/sitemap.xml', url.origin).toString();
@@ -72,6 +91,32 @@ export class RobotsTxtPolicy {
     }
   }
 
+  private readonly robotsTextCache = new Map<string, string | null>();
+
+  private async getRawRobotsText(url: URL): Promise<string | null> {
+    const cacheKey = url.origin;
+    if (this.robotsTextCache.has(cacheKey)) {
+      return this.robotsTextCache.get(cacheKey)!;
+    }
+
+    const robotsUrl = new URL('/robots.txt', url.origin).toString();
+    try {
+      const response = await this.fetchFn(robotsUrl, {
+        headers: { 'user-agent': 'AlienEyesBot/0.1 (+https://alieneyes.dev)' }
+      });
+      if (!response.ok) {
+        this.robotsTextCache.set(cacheKey, null);
+        return null;
+      }
+      const text = await response.text();
+      this.robotsTextCache.set(cacheKey, text);
+      return text;
+    } catch {
+      this.robotsTextCache.set(cacheKey, null);
+      return null;
+    }
+  }
+
   private async getRules(url: URL): Promise<RuleSet> {
     const cacheKey = url.origin;
     const cached = this.cache.get(cacheKey);
@@ -79,27 +124,16 @@ export class RobotsTxtPolicy {
       return cached;
     }
 
-    const robotsUrl = new URL('/robots.txt', url.origin).toString();
-
-    try {
-      const response = await this.fetchFn(robotsUrl, {
-        headers: { 'user-agent': 'AlienEyesBot/0.1 (+https://alieneyes.dev)' }
-      });
-      if (!response.ok) {
-        const rules = { status: 'not_found' as const, disallow: [] };
-        this.cache.set(cacheKey, rules);
-        return rules;
-      }
-
-      const text = await response.text();
-      const rules = parseRobots(text);
-      this.cache.set(cacheKey, rules);
-      return rules;
-    } catch {
+    const text = await this.getRawRobotsText(url);
+    if (!text) {
       const rules = { status: 'not_found' as const, disallow: [] };
       this.cache.set(cacheKey, rules);
       return rules;
     }
+
+    const rules = parseRobots(text);
+    this.cache.set(cacheKey, rules);
+    return rules;
   }
 }
 
@@ -209,4 +243,45 @@ function parseRobots(text: string): RuleSet {
   }
 
   return { status: 'found', disallow };
+}
+
+function parseAICrawlerDirectives(text: string): AICrawlerDirective[] {
+  const lines = text.split(/\r?\n/);
+  const agentBlocks = new Map<string, string[]>();
+  let currentAgents: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+
+    const [directive, ...rest] = trimmed.split(':');
+    const value = rest.join(':').trim();
+
+    if (/^user-agent$/i.test(directive)) {
+      currentAgents = [value];
+      for (const agent of currentAgents) {
+        if (!agentBlocks.has(agent)) agentBlocks.set(agent, []);
+      }
+    } else if (/^disallow$/i.test(directive) && value) {
+      for (const agent of currentAgents) {
+        agentBlocks.get(agent)?.push(value);
+      }
+    }
+  }
+
+  const wildcardDisallows = agentBlocks.get('*') ?? [];
+
+  return AI_CRAWLERS.map(({ botName, platform }) => {
+    const specificDisallows = agentBlocks.get(botName);
+    const hasSpecificBlock = specificDisallows !== undefined;
+    const disallowedPaths = hasSpecificBlock ? specificDisallows : wildcardDisallows;
+    const blocked = disallowedPaths.includes('/');
+
+    return {
+      botName,
+      platform,
+      blocked,
+      disallowedPaths: blocked ? [] : disallowedPaths,
+    };
+  });
 }

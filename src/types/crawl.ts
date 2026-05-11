@@ -27,6 +27,19 @@ export interface CrawlResult {
   robotsTxtStatus: 'found' | 'not_found' | 'blocked_some_pages';
   /** Supplemental mobile capture of the seed URL */
   mobileSnapshot?: CrawledPage;
+  /** AI crawler access directives parsed from robots.txt */
+  aiCrawlerDirectives?: AICrawlerDirective[];
+}
+
+export interface AICrawlerDirective {
+  /** User-agent name (e.g., GPTBot, ClaudeBot) */
+  botName: string;
+  /** Which AI platform this bot serves */
+  platform: string;
+  /** Whether this bot is explicitly blocked via Disallow: / */
+  blocked: boolean;
+  /** Specific paths disallowed for this bot (empty if fully blocked or fully allowed) */
+  disallowedPaths: string[];
 }
 
 export interface CrawledPage {
