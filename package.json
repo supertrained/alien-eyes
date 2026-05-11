@@ -39,5 +39,9 @@
   "bin": {
     "ae": "./bin/ae",
     "alieneyes": "./bin/alieneyes"
+  },
+  "exports": {
+    "./types": "./src/types/index.ts",
+    "./schemas/audit-output": "./schemas/audit-output.schema.json"
   }
 }

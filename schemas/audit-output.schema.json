@@ -1,0 +1,267 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alieneyes.dev/schemas/audit-output.schema.json",
+  "title": "Alien Eyes Audit Output",
+  "description": "JSON output from `ae audit --json`. This is the contract for external consumers (e.g., Dual Cognition integration layer).",
+  "type": "object",
+  "required": ["auditId", "url", "findings", "celebration", "satisfactionScore", "humanNativeScore", "agentNativenessScore", "dimensionScores", "causalChains", "verbatimNarrative", "meta"],
+  "properties": {
+    "auditId": {
+      "type": "string",
+      "description": "Unique audit identifier"
+    },
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL that was audited"
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Finding" },
+      "description": "All findings, de-duplicated and sorted by fix order"
+    },
+    "celebration": { "$ref": "#/$defs/CelebrationSection" },
+    "satisfactionScore": { "$ref": "#/$defs/Score" },
+    "humanNativeScore": { "$ref": "#/$defs/Score" },
+    "agentNativenessScore": { "$ref": "#/$defs/Score" },
+    "dimensionScores": {
+      "type": "object",
+      "description": "Per-dimension scores. Null if dimension was not evaluated.",
+      "additionalProperties": {
+        "oneOf": [
+          { "$ref": "#/$defs/Score" },
+          { "type": "null" }
+        ]
+      }
+    },
+    "causalChains": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/CausalChain" }
+    },
+    "verbatimNarrative": {
+      "type": "string",
+      "description": "Narrative from simulated user perspective"
+    },
+    "meta": { "$ref": "#/$defs/AuditMeta" },
+    "delta": {
+      "oneOf": [
+        { "$ref": "#/$defs/DeltaComparison" },
+        { "type": "null" }
+      ],
+      "description": "Delta comparison if this is a re-audit"
+    }
+  },
+  "$defs": {
+    "AuditDimension": {
+      "type": "string",
+      "enum": ["seo", "aeo", "geo", "meo", "accessibility", "security", "performance", "ux", "copy", "analytics", "legal", "agent-nativeness", "email", "api-quality"]
+    },
+    "Severity": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low"]
+    },
+    "Finding": {
+      "type": "object",
+      "required": ["id", "what", "where", "expected", "why", "verify", "severity", "dimension", "confidence", "evidence", "lifecycle"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z-]+-\\d+$",
+          "description": "Unique identifier. Format: dimension-NNN"
+        },
+        "what": {
+          "type": "string",
+          "description": "What is wrong — specific observable behavior"
+        },
+        "where": {
+          "type": "string",
+          "description": "Where in the product — URL, endpoint, page section, or component"
+        },
+        "expected": {
+          "type": "string",
+          "description": "What should happen instead"
+        },
+        "why": {
+          "type": "string",
+          "description": "Why it matters — who is affected and how"
+        },
+        "verify": {
+          "type": "string",
+          "description": "How to verify the fix"
+        },
+        "severity": { "$ref": "#/$defs/Severity" },
+        "dimension": { "$ref": "#/$defs/AuditDimension" },
+        "causalChain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "IDs of related findings in causal chain"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Confidence score 0-1"
+        },
+        "requiresHumanJudgment": { "type": "boolean" },
+        "humanJudgmentReason": { "type": "string" },
+        "evidence": { "$ref": "#/$defs/EvidenceBundle" },
+        "lifecycle": { "$ref": "#/$defs/FindingLifecycle" }
+      }
+    },
+    "EvidenceBundle": {
+      "type": "object",
+      "required": ["url", "timestamp", "domSnapshotHash", "completeness"],
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "domSnapshotHash": { "type": "string" },
+        "screenshotPath": { "type": "string" },
+        "relevantHeaders": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "model": { "type": "string" },
+        "tokensUsed": { "type": "integer" },
+        "reasoning": { "type": "string" },
+        "completeness": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "FindingLifecycle": {
+      "type": "object",
+      "required": ["state", "updatedAt"],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["detected", "delivered", "accepted", "disputed", "fixed", "false_positive", "fixable", "mitigable", "platform_limited", "accepted_risk", "third_party"]
+        },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" },
+        "reason": { "type": "string" },
+        "platform": { "type": "string" },
+        "thirdPartyService": { "type": "string" }
+      }
+    },
+    "Score": {
+      "type": "object",
+      "required": ["value", "confidenceLow", "confidenceHigh", "grade", "label", "guidance"],
+      "properties": {
+        "value": { "type": "number", "minimum": 0, "maximum": 100 },
+        "confidenceLow": { "type": "number" },
+        "confidenceHigh": { "type": "number" },
+        "grade": { "type": "string", "enum": ["A", "B", "C", "D", "F"] },
+        "label": { "type": "string" },
+        "guidance": { "type": "string" }
+      }
+    },
+    "CelebrationSection": {
+      "type": "object",
+      "required": ["pageCount", "workingFlows", "cleanDimensions", "positiveObservations"],
+      "properties": {
+        "pageCount": { "type": "integer" },
+        "workingFlows": { "type": "integer" },
+        "cleanDimensions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/AuditDimension" }
+        },
+        "positiveObservations": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "CausalChain": {
+      "type": "object",
+      "required": ["findingIds", "description", "rootCauseId"],
+      "properties": {
+        "findingIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "description": { "type": "string" },
+        "rootCauseId": { "type": "string" }
+      }
+    },
+    "AuditMeta": {
+      "type": "object",
+      "required": ["timestamp", "durationMs", "totalCostUsd", "costByPrimitive", "methodologyVersion", "pagesCrawled", "pagesDiscovered", "ownershipVerified", "tier"],
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "durationMs": { "type": "integer" },
+        "totalCostUsd": { "type": "number" },
+        "costByPrimitive": {
+          "type": "object",
+          "additionalProperties": { "type": "number" }
+        },
+        "methodologyVersion": { "type": "string" },
+        "pagesCrawled": { "type": "integer" },
+        "pagesDiscovered": { "type": "integer" },
+        "detectedStack": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "ownershipVerified": { "type": "boolean" },
+        "tier": {
+          "type": "string",
+          "enum": ["quick_check", "full_audit"]
+        }
+      }
+    },
+    "DeltaComparison": {
+      "type": "object",
+      "required": ["previousAuditId", "previousTimestamp", "fixed", "new", "regressed", "unchanged", "scoreChange"],
+      "properties": {
+        "previousAuditId": { "type": "string" },
+        "previousTimestamp": { "type": "string", "format": "date-time" },
+        "fixed": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Finding" }
+        },
+        "new": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Finding" }
+        },
+        "regressed": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Finding" }
+        },
+        "unchanged": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Finding" }
+        },
+        "scoreChange": {
+          "type": "object",
+          "required": ["satisfaction", "humanNative", "agentNativeness"],
+          "properties": {
+            "satisfaction": { "type": "number" },
+            "humanNative": { "type": "number" },
+            "agentNativeness": { "type": "number" }
+          }
+        }
+      }
+    },
+    "Envelope": {
+      "type": "object",
+      "description": "Universal output envelope for all primitives. Not part of the --json output directly, but useful for programmatic consumers of individual primitive results.",
+      "required": ["primitive", "status", "data", "confidence", "confidenceFactors", "metadata"],
+      "properties": {
+        "primitive": { "type": "string" },
+        "status": { "type": "string", "enum": ["success", "error", "timeout"] },
+        "data": { "description": "For Preflight primitives: Finding[]. For Marketing primitives: varies." },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "confidenceFactors": { "type": "array", "items": { "type": "string" } },
+        "reasoning": { "type": "string" },
+        "metadata": {
+          "type": "object",
+          "required": ["durationMs", "methodologyVersion"],
+          "properties": {
+            "model": { "type": "string" },
+            "tokensUsed": { "type": "integer" },
+            "costUsd": { "type": "number" },
+            "durationMs": { "type": "integer" },
+            "methodologyVersion": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}
