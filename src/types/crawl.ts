@@ -29,6 +29,8 @@ export interface CrawlResult {
   mobileSnapshot?: CrawledPage;
   /** AI crawler access directives parsed from robots.txt */
   aiCrawlerDirectives?: AICrawlerDirective[];
+  /** Tracking tools and pixels detected from network requests and HTML */
+  trackingInventory?: TrackingToolDetection[];
 }
 
 export interface AICrawlerDirective {
@@ -40,6 +42,13 @@ export interface AICrawlerDirective {
   blocked: boolean;
   /** Specific paths disallowed for this bot (empty if fully blocked or fully allowed) */
   disallowedPaths: string[];
+}
+
+export interface TrackingToolDetection {
+  name: string;
+  category: 'analytics' | 'advertising' | 'heatmap' | 'crm' | 'consent' | 'social' | 'other';
+  detectedVia: 'network' | 'script' | 'html';
+  matchedUrl?: string;
 }
 
 export interface CrawledPage {

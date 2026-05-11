@@ -6,6 +6,7 @@ import { BrowserPool, type CrawlDeviceType } from '@/lib/crawler/browser-pool';
 import { collectPage } from '@/lib/crawler/page-collector';
 import { RobotsTxtPolicy, discoverInternalLinks, discoverInternalLinksFromPage, prioritizeLinks } from '@/lib/crawler/link-discovery';
 import { URLValidator } from '@/lib/security/url-validator';
+import { detectTrackingTools, detectTrackingToolsFromHtml } from '@/lib/extraction/tracking-detector';
 
 export interface PageCrawledEvent {
   url: string;
@@ -103,6 +104,16 @@ export class CrawlEngine {
       pagesSkipped += discoveredQueue.length;
     }
 
+    const allNetworkRequests = pages.flatMap((p) => p.networkRequests);
+    const allHtml = pages.map((p) => p.html).join('\n');
+    const networkTools = detectTrackingTools(allNetworkRequests);
+    const htmlTools = detectTrackingToolsFromHtml(allHtml);
+    const toolNames = new Set(networkTools.map((t) => t.name));
+    const trackingInventory = [
+      ...networkTools,
+      ...htmlTools.filter((t) => !toolNames.has(t.name)),
+    ];
+
     return {
       url,
       pages,
@@ -116,6 +127,7 @@ export class CrawlEngine {
       robotsTxtStatus: await this.robotsPolicy.getStatus(url),
       mobileSnapshot,
       aiCrawlerDirectives: await this.robotsPolicy.getAICrawlerDirectives(url),
+      trackingInventory: trackingInventory.length > 0 ? trackingInventory : undefined,
     };
   }
 
