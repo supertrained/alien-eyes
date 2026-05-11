@@ -114,7 +114,8 @@ export class CrawlEngine {
       sitemapUrls,
       detectedStack: detectStack(pages),
       robotsTxtStatus: await this.robotsPolicy.getStatus(url),
-      mobileSnapshot
+      mobileSnapshot,
+      aiCrawlerDirectives: await this.robotsPolicy.getAICrawlerDirectives(url),
     };
   }
 
