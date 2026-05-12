@@ -9,9 +9,10 @@ export interface BrowserPoolOptions {
 
 async function launchServerlessBrowser(): Promise<Browser> {
   const sparticuz = await import('@sparticuz/chromium');
+  sparticuz.default.setGraphicsMode = false;
   return chromium.launch({
     args: sparticuz.default.args,
-    executablePath: await sparticuz.default.executablePath(),
+    executablePath: await sparticuz.default.executablePath('/tmp/chromium'),
     headless: true,
   });
 }
