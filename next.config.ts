@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname
   },
-  serverExternalPackages: ['playwright', 'bullmq', 'ioredis', '@sparticuz/chromium-min']
+  serverExternalPackages: ['playwright', 'bullmq', 'ioredis']
 };
 
 export default nextConfig;
