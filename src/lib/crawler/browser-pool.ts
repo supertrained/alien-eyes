@@ -7,6 +7,27 @@ export interface BrowserPoolOptions {
   launchBrowser?: () => Promise<Browser>;
 }
 
+async function launchServerlessBrowser(): Promise<Browser> {
+  const sparticuz = await import('@sparticuz/chromium');
+  return chromium.launch({
+    args: sparticuz.default.args,
+    executablePath: await sparticuz.default.executablePath(),
+    headless: true,
+  });
+}
+
+function launchLocalBrowser(): Promise<Browser> {
+  return chromium.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-blink-features=AutomationControlled'
+    ]
+  });
+}
+
 export interface BrowserSession {
   context: BrowserContext;
   page: Page;
@@ -36,15 +57,9 @@ export class BrowserPool {
 
   constructor(options: BrowserPoolOptions = {}) {
     this.maxConcurrentBrowsers = options.maxConcurrentBrowsers ?? 1;
-    this.launchBrowser = options.launchBrowser ?? (() => chromium.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-blink-features=AutomationControlled'
-      ]
-    }));
+    this.launchBrowser = options.launchBrowser ?? (
+      process.env.VERCEL ? launchServerlessBrowser : launchLocalBrowser
+    );
   }
 
   async withCleanPage<T>(

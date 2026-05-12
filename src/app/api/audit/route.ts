@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { startAuditJob } from '@/lib/audit-jobs';
 import { getOptionalRequestUser } from '@/lib/auth';
 
 export const runtime = 'nodejs';
+export const maxDuration = 300;
 
 const requestSchema = z.object({
   url: z.string().url(),
@@ -19,6 +20,12 @@ export async function POST(request: Request) {
       ...body,
       userId: user?.id
     });
+
+    const backgroundWork = (job as typeof job & { _backgroundWork?: Promise<void> })._backgroundWork;
+    if (backgroundWork) {
+      after(backgroundWork);
+    }
+
     return NextResponse.json({
       id: job.id,
       status: job.status,

@@ -84,13 +84,17 @@ export async function startAuditJob(input: {
     return (await getAuditJob(job.id))!;
   }
 
-  dependencies.runLocalAudit({
+  const backgroundWork = dependencies.runLocalAudit({
     auditId: job.id,
     url: input.url,
     config
-  }).catch(() => undefined);
+  }).catch((error) => {
+    console.error(`[audit ${job.id}] runLocalAudit failed:`, error instanceof Error ? error.message : error);
+  });
 
-  return (await getAuditJob(job.id))!;
+  const result = (await getAuditJob(job.id))!;
+  (result as AuditJobRecord & { _backgroundWork?: Promise<void> })._backgroundWork = backgroundWork;
+  return result;
 }
 
 export async function runAuditJob(data: AuditQueueJobData): Promise<void> {
