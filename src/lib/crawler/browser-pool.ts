@@ -7,12 +7,15 @@ export interface BrowserPoolOptions {
   launchBrowser?: () => Promise<Browser>;
 }
 
+const CHROMIUM_PACK_URL =
+  'https://github.com/Sparticuz/chromium/releases/download/v148.0.0/chromium-v148.0.0-pack.tar';
+
 async function launchServerlessBrowser(): Promise<Browser> {
-  const sparticuz = await import('@sparticuz/chromium');
+  const sparticuz = await import('@sparticuz/chromium-min');
   sparticuz.default.setGraphicsMode = false;
   return chromium.launch({
     args: sparticuz.default.args,
-    executablePath: await sparticuz.default.executablePath(),
+    executablePath: await sparticuz.default.executablePath(CHROMIUM_PACK_URL),
     headless: true,
   });
 }
