@@ -45,7 +45,7 @@ export class CrawlEngine {
     this.browserPool = options.browserPool ?? new BrowserPool();
     this.validator = options.validator ?? new URLValidator();
     this.robotsPolicy = options.robotsPolicy ?? new RobotsTxtPolicy();
-    this.screenshotDir = options.screenshotDir ?? join(process.cwd(), '.tmp', 'screenshots');
+    this.screenshotDir = options.screenshotDir ?? join(process.env.VERCEL ? '/tmp' : process.cwd(), '.tmp', 'screenshots');
     this.deviceType = options.deviceType ?? 'desktop';
     this.maxRetries = options.maxRetries ?? 2;
     this.onPageCrawledCallback = options.onPageCrawled;
