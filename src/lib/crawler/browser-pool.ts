@@ -12,7 +12,7 @@ async function launchServerlessBrowser(): Promise<Browser> {
   sparticuz.default.setGraphicsMode = false;
   return chromium.launch({
     args: sparticuz.default.args,
-    executablePath: await sparticuz.default.executablePath('/tmp/chromium'),
+    executablePath: await sparticuz.default.executablePath(),
     headless: true,
   });
 }
