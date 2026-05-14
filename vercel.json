@@ -1,0 +1,12 @@
+{
+  "functions": {
+    "src/app/api/audit/route.ts": {
+      "memory": 3008,
+      "maxDuration": 300
+    },
+    "src/app/api/primitives/run/route.ts": {
+      "memory": 3008,
+      "maxDuration": 300
+    }
+  }
+}

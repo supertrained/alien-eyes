@@ -58,7 +58,14 @@ export async function runPrimitives(request: PrimitiveRunRequest): Promise<Primi
   if (needsCrawl) {
     const validator = new URLValidator();
     const url = request.domain.startsWith('http') ? request.domain : `https://${request.domain}`;
-    const validation = await validator.validate(url);
+    let validation = await validator.validate(url);
+    if (!validation.valid && validation.blockReason?.startsWith('DNS resolution failed')) {
+      const parsed = new URL(url);
+      if (!parsed.hostname.startsWith('www.')) {
+        parsed.hostname = `www.${parsed.hostname}`;
+        validation = await validator.validate(parsed.toString());
+      }
+    }
     if (!validation.valid) {
       throw new Error(validation.blockReason ?? 'URL validation failed');
     }
@@ -107,6 +114,10 @@ export async function runPrimitives(request: PrimitiveRunRequest): Promise<Primi
       results.set(name, envelope);
     }
     executionOrder.push(...dagResult.order);
+
+    import('@/lib/marketing/browser-pool')
+      .then(m => m.closeAll())
+      .catch(() => undefined);
   }
 
   return {
@@ -215,14 +226,15 @@ async function runWithTimeout(
   def: PrimitiveDefinition,
   ctx: PrimitiveContext,
 ): Promise<Envelope<Finding[]>> {
+  const timeout = def.timeoutMs ?? PRIMITIVE_TIMEOUT_MS;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       def.run(ctx),
       new Promise<never>((_, reject) => {
         timer = setTimeout(
-          () => reject(new Error(`Timeout: ${def.name} exceeded ${PRIMITIVE_TIMEOUT_MS}ms`)),
-          PRIMITIVE_TIMEOUT_MS,
+          () => reject(new Error(`Timeout: ${def.name} exceeded ${timeout}ms`)),
+          timeout,
         );
       }),
     ]);

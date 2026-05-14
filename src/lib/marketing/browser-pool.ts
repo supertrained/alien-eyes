@@ -190,7 +190,12 @@ export { randomDelay, navigateWithRobotsCheck };
 async function isPublicHostname(hostname: string): Promise<boolean> {
   try {
     const { resolve4 } = await import("node:dns/promises");
-    const addresses = await resolve4(hostname);
+    const addresses = await Promise.race([
+      resolve4(hostname),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('DNS timeout')), 10_000)
+      ),
+    ]);
     for (const addr of addresses) {
       if (
         addr.startsWith("127.") ||

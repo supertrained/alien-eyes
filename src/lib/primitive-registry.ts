@@ -26,6 +26,7 @@ export interface PrimitiveDefinition {
   requiresKeys?: string[];
   usesLLM: boolean;
   costEstimate: { min: number; max: number };
+  timeoutMs?: number;
   run: (ctx: PrimitiveContext) => Promise<Envelope<Finding[]>>;
 }
 

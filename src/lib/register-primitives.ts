@@ -100,22 +100,13 @@ const marketingPrimitives: PrimitiveDefinition[] = [
       import('@/primitives/marketing/traffic-analysis').then(m => m.runTrafficAnalysis(ctx.domain))),
   },
   {
-    name: 'website-cro',
-    type: 'gather',
-    dimension: 'cro',
-    category: 'marketing',
-    usesLLM: true,
-    costEstimate: { min: 0.10, max: 1.00 },
-    run: async (ctx) => gatherStub(ctx, 'website-cro', () =>
-      import('@/primitives/marketing/website-cro').then(m => m.runWebsiteCro(url(ctx.domain), 'ae-registry'))),
-  },
-  {
     name: 'tracking-analytics',
     type: 'gather',
     dimension: 'analytics',
     category: 'marketing',
     usesLLM: false,
     costEstimate: { min: 0.01, max: 0.10 },
+    timeoutMs: 90_000,
     run: async (ctx) => gatherStub(ctx, 'tracking-analytics', () =>
       import('@/primitives/marketing/tracking-analytics').then(m => m.runTrackingAnalytics(url(ctx.domain), ctx.domain))),
   },
@@ -126,6 +117,7 @@ const marketingPrimitives: PrimitiveDefinition[] = [
     category: 'marketing',
     usesLLM: true,
     costEstimate: { min: 0.10, max: 0.80 },
+    timeoutMs: 90_000,
     dependencies: ['company-enrichment'],
     run: async (ctx) => {
       const company = getUpstreamRawData(ctx, 'company-enrichment');
@@ -145,6 +137,7 @@ const marketingPrimitives: PrimitiveDefinition[] = [
     category: 'marketing',
     usesLLM: true,
     costEstimate: { min: 0.10, max: 0.80 },
+    timeoutMs: 90_000,
     dependencies: ['company-enrichment'],
     run: async (ctx) => {
       const company = getUpstreamRawData(ctx, 'company-enrichment');
@@ -262,8 +255,33 @@ const marketingPrimitives: PrimitiveDefinition[] = [
     category: 'marketing',
     usesLLM: true,
     costEstimate: { min: 0.10, max: 0.60 },
-    run: async (ctx) => gatherStub(ctx, 'website-messaging', () =>
-      import('@/primitives/marketing/website-messaging').then(m => m.runWebsiteMessaging(url(ctx.domain), ''))),
+    dependencies: ['website-technical'],
+    run: async (ctx) => {
+      const techData = getUpstreamRawData(ctx, 'website-technical');
+      let html = (techData?.fullPageHtml as string) ?? '';
+      const groundTruth = techData?.onPageSeo ? {
+        h1: (techData.onPageSeo as any)?.h1 ?? null,
+        title: (techData.onPageSeo as any)?.title ?? null,
+        metaDescription: (techData.onPageSeo as any)?.metaDescription ?? null,
+        ogTitle: (techData.onPageSeo as any)?.ogTitle ?? null,
+        ogDescription: (techData.onPageSeo as any)?.ogDescription ?? null,
+      } : undefined;
+      if (!html && ctx.crawl?.pages?.[0]?.html) {
+        html = ctx.crawl.pages[0].html;
+      }
+      if (!html) {
+        try {
+          const res = await fetch(url(ctx.domain), {
+            signal: AbortSignal.timeout(15_000),
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AlienEyes/1.0)' },
+          });
+          html = await res.text();
+        } catch { /* proceed with empty — LLM will note insufficient data */ }
+      }
+      return gatherStub(ctx, 'website-messaging', () =>
+        import('@/primitives/marketing/website-messaging').then(m =>
+          m.runWebsiteMessaging(url(ctx.domain), html, groundTruth)));
+    },
   },
   {
     name: 'website-technical',
@@ -272,6 +290,7 @@ const marketingPrimitives: PrimitiveDefinition[] = [
     category: 'marketing',
     usesLLM: false,
     costEstimate: { min: 0.01, max: 0.10 },
+    timeoutMs: 120_000,
     run: async (ctx) => gatherStub(ctx, 'website-technical', () =>
       import('@/primitives/marketing/website-technical').then(m => m.runWebsiteTechnical(url(ctx.domain), 'ae-registry'))),
   },

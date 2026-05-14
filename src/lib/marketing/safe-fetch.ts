@@ -41,7 +41,12 @@ async function validateHostname(hostname: string): Promise<void> {
   }
 
   try {
-    const addresses = await dns.resolve4(hostname);
+    const addresses = await Promise.race([
+      dns.resolve4(hostname),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('DNS timeout')), 10_000)
+      ),
+    ]);
     for (const ip of addresses) {
       if (isPrivateIp(ip)) {
         throw new Error(

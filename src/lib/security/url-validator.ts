@@ -99,9 +99,18 @@ export class URLValidator {
   private async resolveAndValidate(hostname: string, url: string): Promise<URLValidationResult> {
     let entries: Array<{ address: string; family: number }>;
     try {
-      entries = await this.lookupFn(hostname, { all: true });
-    } catch {
-      return this.blocked(url, 'DNS resolution failed');
+      entries = await Promise.race([
+        this.lookupFn(hostname, { all: true }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('DNS lookup timeout')), 10_000)
+        ),
+      ]);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException)?.code;
+      if (code === 'ENOTFOUND' || code === 'ENODATA') {
+        return this.blocked(url, 'DNS resolution failed');
+      }
+      return this.blocked(url, 'DNS resolution failed (transient)');
     }
 
     const resolvedIPs = Array.from(new Set(entries.map((entry) => entry.address)));
