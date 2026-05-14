@@ -67,36 +67,54 @@ export class CrawlEngine {
 
     const sitemapUrls = await this.robotsPolicy.getSitemapUrls(url);
 
-    await this.browserPool.withCleanPage(this.deviceType, async (session) => {
-      while (discoveredQueue.length > 0 && pages.length < config.pageLimit) {
-        const nextUrl = discoveredQueue.shift()!;
-        if (visited.has(nextUrl)) {
+    while (discoveredQueue.length > 0 && pages.length < config.pageLimit) {
+      const nextUrl = discoveredQueue.shift()!;
+      if (visited.has(nextUrl)) {
+        continue;
+      }
+      visited.add(nextUrl);
+
+      let result: { page?: CrawledPage; error?: CrawlError } | undefined;
+      try {
+        result = await this.browserPool.withCleanPage(this.deviceType, async (session) => {
+          return this.crawlPageWithRetry(session, nextUrl, url, sitemapUrls, pages, discoveredQueue, visited);
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes('has been closed') || message.includes('disconnected')) {
+          errors.push({
+            url: nextUrl,
+            error: `Browser crashed: ${message}`,
+            errorType: 'unknown',
+            retryCount: 0,
+            timestamp: new Date().toISOString(),
+          });
+          pagesSkipped += 1;
           continue;
         }
-        visited.add(nextUrl);
+        throw err;
+      }
 
-        const result = await this.crawlPageWithRetry(session, nextUrl, url, sitemapUrls, pages, discoveredQueue, visited);
-        if (result.page) {
-          pages.push(result.page);
-          if (this.onPageCrawledCallback) {
-            const errorCount = result.page.consoleLogs?.filter((e) => e.level === 'error').length ?? 0;
-            const pageWeight = result.page.html ? Buffer.byteLength(result.page.html, 'utf8') : undefined;
-            this.onPageCrawledCallback({
-              url: nextUrl,
-              pageNumber: pages.length,
-              totalQueued: discoveredQueue.length,
-              loadTimeMs: result.page.loadTimeMs ?? 0,
-              errorCount,
-              pageWeight,
-            });
-          }
-        }
-        if (result.error) {
-          errors.push(result.error);
-          pagesSkipped += 1;
+      if (result?.page) {
+        pages.push(result.page);
+        if (this.onPageCrawledCallback) {
+          const errorCount = result.page.consoleLogs?.filter((e) => e.level === 'error').length ?? 0;
+          const pageWeight = result.page.html ? Buffer.byteLength(result.page.html, 'utf8') : undefined;
+          this.onPageCrawledCallback({
+            url: nextUrl,
+            pageNumber: pages.length,
+            totalQueued: discoveredQueue.length,
+            loadTimeMs: result.page.loadTimeMs ?? 0,
+            errorCount,
+            pageWeight,
+          });
         }
       }
-    });
+      if (result?.error) {
+        errors.push(result.error);
+        pagesSkipped += 1;
+      }
+    }
 
     const mobileSnapshot = pages.length > 0 ? await this.captureMobileSnapshot(url) : undefined;
 
@@ -272,7 +290,9 @@ function isRetryable(error: Error | undefined): boolean {
     message.includes('net::err_') ||
     message.includes('navigation failed') ||
     message.includes('connection refused') ||
-    message.includes('econnreset');
+    message.includes('econnreset') ||
+    message.includes('has been closed') ||
+    message.includes('disconnected');
 }
 
 function classifyError(error: Error | undefined): CrawlError['errorType'] {

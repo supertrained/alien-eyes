@@ -106,6 +106,12 @@ export class BrowserPool {
   }
 
   private async getBrowser(): Promise<Browser> {
+    if (this.browserPromise) {
+      const browser = await this.browserPromise;
+      if (!browser.isConnected()) {
+        this.browserPromise = undefined;
+      }
+    }
     if (!this.browserPromise) {
       this.browserPromise = this.launchBrowser();
     }
