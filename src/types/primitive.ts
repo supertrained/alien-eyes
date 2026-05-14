@@ -21,7 +21,19 @@ export type AuditDimension =
   | 'legal'
   | 'agent-nativeness'
   | 'email'
-  | 'api-quality';
+  | 'api-quality'
+  // Marketing dimensions
+  | 'traffic'
+  | 'cro'
+  | 'ads'
+  | 'competitors'
+  | 'company'
+  | 'brand'
+  | 'social'
+  | 'pricing'
+  | 'content'
+  | 'messaging'
+  | 'technical';
 
 /**
  * Audit configuration passed to every primitive.

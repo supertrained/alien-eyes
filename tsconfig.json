@@ -26,6 +26,9 @@
       ],
       "@/types/*": [
         "src/types/*"
+      ],
+      "@marketing/*": [
+        "src/lib/marketing/*"
       ]
     },
     "types": [

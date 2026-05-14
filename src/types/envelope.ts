@@ -32,6 +32,8 @@ export interface EnvelopeMetadata {
   durationMs: number;
   /** Which methodology version this was scored against */
   methodologyVersion: string;
+  /** Raw structured data from the primitive (marketing gather primitives preserve their full typed output here) */
+  rawData?: Record<string, unknown>;
 }
 
 /**

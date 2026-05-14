@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { runAuditCommand, type AuditCommandOptions } from '@/cli/audit';
+import { runPrimitivesCommand } from '@/cli/primitives';
 
 async function main(argv = process.argv.slice(2)): Promise<number> {
   try {
@@ -8,6 +9,10 @@ async function main(argv = process.argv.slice(2)): Promise<number> {
     if (options.help || !command) {
       process.stdout.write(helpText());
       return 0;
+    }
+
+    if (command === 'primitives') {
+      return runPrimitivesCommand(positionals, options);
     }
 
     if (command !== 'audit') {
@@ -33,9 +38,9 @@ async function main(argv = process.argv.slice(2)): Promise<number> {
 function parseArgs(argv: string[]): {
   command?: string;
   positionals: string[];
-  options: AuditCommandOptions & { help: boolean };
+  options: AuditCommandOptions & { help: boolean; primitives?: string[] };
 } {
-  const options: AuditCommandOptions & { help: boolean } = {
+  const options: AuditCommandOptions & { help: boolean; primitives?: string[] } = {
     format: 'format-b',
     pageLimit: 30,
     quick: false,
@@ -87,6 +92,15 @@ function parseArgs(argv: string[]): {
       index += 1;
       continue;
     }
+    if (arg === '--primitives') {
+      const value = argv[index + 1];
+      if (!value) {
+        throw new Error('--primitives requires a comma-separated list of names');
+      }
+      options.primitives = value.split(',').map(s => s.trim()).filter(Boolean);
+      index += 1;
+      continue;
+    }
 
     positionals.push(arg);
   }
@@ -111,18 +125,25 @@ function normalizeFormat(value: string): AuditCommandOptions['format'] {
 
 function helpText(): string {
   return [
-    'Usage: ae audit <url> [options]',
+    'Usage: ae <command> [options]',
     '',
     'Commands:',
-    '  audit <url>           Run an Alien Eyes audit',
+    '  audit <url>                Run a full Alien Eyes audit',
+    '  primitives list            List all registered primitives',
+    '  primitives run <domain>    Run specific primitives on a domain',
     '',
-    'Options:',
+    'Audit Options:',
     '  --format a|b|c|json   Select output format (default: b)',
     '  --json                Shorthand for --format json',
     '  --pages <n>           Override page limit (default: 30)',
     '  --quick               Deterministic quick check, no LLM calls',
     '  --verbose             Show progress in stderr',
     '  --help                Show this help message',
+    '',
+    'Primitives Run Options:',
+    '  --primitives <list>   Comma-separated primitive names (default: all)',
+    '  --json                Output as JSON',
+    '  --quick               Deterministic mode, no LLM',
     ''
   ].join('\n');
 }

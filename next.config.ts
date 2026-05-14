@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname
   },
-  serverExternalPackages: ['playwright', 'bullmq', 'ioredis']
+  serverExternalPackages: ['playwright', 'bullmq', 'ioredis', 'wappalyzer-core', 'exa-js', 'resend']
 };
 
 export default nextConfig;

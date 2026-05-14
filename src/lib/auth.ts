@@ -115,6 +115,10 @@ export async function getOptionalRequestUser(request: Request): Promise<RequestU
     return undefined;
   }
 
+  if (token.startsWith('ae_live_')) {
+    return verifyApiKey(token);
+  }
+
   return verifyAccessToken(token);
 }
 
@@ -287,6 +291,56 @@ export async function createApiKeyForUser(userId: string, name: string): Promise
     lastUsedAt: data.last_used_at,
     rateLimitPerHour: data.rate_limit_per_hour,
     expiresAt: data.expires_at
+  };
+}
+
+export async function verifyApiKey(rawKey: string): Promise<RequestUser> {
+  const client = getSupabaseAdminClient();
+  if (!client) {
+    throw new RequestAuthError('Supabase auth is not configured', 503);
+  }
+
+  const keyHash = createHash('sha256').update(rawKey).digest('hex');
+
+  const { data: keyRow, error: keyError } = await client
+    .from('aeb_api_keys')
+    .select('id, user_id, is_active, expires_at')
+    .eq('key_hash', keyHash)
+    .single();
+
+  if (keyError || !keyRow) {
+    throw new RequestAuthError('Invalid API key', 401);
+  }
+
+  if (!keyRow.is_active) {
+    throw new RequestAuthError('API key is deactivated', 403);
+  }
+
+  if (keyRow.expires_at && new Date(keyRow.expires_at) < new Date()) {
+    throw new RequestAuthError('API key has expired', 403);
+  }
+
+  const { data: userRow, error: userError } = await client
+    .from('aeb_users')
+    .select('id, email, display_name, avatar_url')
+    .eq('id', keyRow.user_id)
+    .single();
+
+  if (userError || !userRow) {
+    throw new RequestAuthError('API key owner not found', 401);
+  }
+
+  client
+    .from('aeb_api_keys')
+    .update({ last_used_at: new Date().toISOString() })
+    .eq('id', keyRow.id)
+    .then(() => undefined);
+
+  return {
+    id: userRow.id,
+    email: userRow.email,
+    displayName: userRow.display_name,
+    avatarUrl: userRow.avatar_url,
   };
 }
 
